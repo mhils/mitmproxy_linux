@@ -1,0 +1,2 @@
+[workspace]
+members = ["xtask", "xdp-interceptor", "xdp-interceptor-common"]
