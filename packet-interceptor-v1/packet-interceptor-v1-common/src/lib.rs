@@ -25,7 +25,7 @@ pub enum PacketEvent {
         local_port: u16,
         payload_size: u16,
         direction: PacketDirection,
-        payload: [u8;64],
+        payload: [u8; 64],
     },
     Disconnect {
         remote_ip: u32,
@@ -83,7 +83,7 @@ impl PacketEvent {
         local_port: u16,
         payload_size: u16,
         direction: PacketDirection,
-        payload: [u8;64],
+        payload: [u8; 64],
     ) -> Self {
         Self::Traffic {
             remote_ip,
@@ -91,7 +91,7 @@ impl PacketEvent {
             local_port,
             payload_size,
             direction,
-            payload, 
+            payload,
         }
     }
     #[inline]
