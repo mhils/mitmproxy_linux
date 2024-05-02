@@ -1,9 +1,12 @@
+use std::ops::Deref;
+
 use aya::programs::{tc, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
 use log::{debug, info, warn};
 use tokio::signal;
+use aya::maps::RingBuf;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -47,6 +50,7 @@ async fn main() -> Result<(), anyhow::Error> {
     // error adding clsact to the interface if it is already added is harmless
     // the full cleanup can be done with 'sudo tc qdisc del dev eth0 clsact'.
 
+
     //EGRESS PROGRAM
     let _ = tc::qdisc_add_clsact(&opt.iface);
     let program: &mut SchedClassifier = bpf
@@ -55,6 +59,16 @@ async fn main() -> Result<(), anyhow::Error> {
         .try_into()?;
     program.load()?;
     program.attach(&opt.iface, TcAttachType::Egress)?;
+
+    // Read from the map and print the packets
+    let mut ring_buf = RingBuf::try_from(bpf.map_mut("PACKETS").expect("first exit")).expect("second exit");
+    loop {
+        while let Some(item) = ring_buf.next() {
+            let packet = item.deref();
+            println!("Packet: {:?}", packet);
+        }
+    }
+
 
     //INGRESS PROGRAM
     let program: &mut SchedClassifier = bpf

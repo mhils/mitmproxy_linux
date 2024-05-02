@@ -1,22 +1,19 @@
 #![no_std]
 #![no_main]
 
-use core::mem;
-use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::PerCpuArray, bindings::TC_ACT_PIPE};
-use aya_ebpf::bindings::{iphdr, tcphdr, eth};
+use core::{mem, ptr};
+use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::RingBuf, bindings::TC_ACT_PIPE};
 use aya_log_ebpf::info;
 
-const ETH_HDR_LEN: usize = mem::size_of::<ethhdr>();
-const IP_HDR_LEN: usize = mem::size_of::<iphdr>();
-const TCP_HDR_LEN: usize = mem::size_of::<tcphdr>();
+const BUF_SIZE: usize = 1500;
 
 #[repr(C)]
-struct Buf {
-    pub buf: [u8; 1500], // Assuming maximum Ethernet frame size
+pub struct Packet {
+    pub buf: [u8; BUF_SIZE], // Assuming maximum Ethernet frame size
 }
 
 #[map]
-pub static mut BUF: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+pub static mut PACKETS: RingBuf = RingBuf::with_byte_size(BUF_SIZE as u32, 0);
 
 //EGRESS PROGRAM
 #[classifier]
@@ -27,15 +24,29 @@ pub fn only_interception_egress(ctx: TcContext) -> i32 {
     }
 }
 
+
 fn try_only_interception_egress(ctx: TcContext) -> Result<i32, i32> {
     info!(&ctx, "received an egress packet");
-    let buf = unsafe {
-        let ptr = BUF.get_ptr_mut(0).ok_or(TC_ACT_PIPE)?;
-        &mut *ptr
-    };
-    let offset = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN;
-    ctx.load_bytes(offset, &mut buf.buf).map_err(|_| TC_ACT_PIPE)?;
-
+    unsafe{
+        // let start = ctx.data();
+        // let end = ctx.data_end();
+        if let Some(mut buf) = PACKETS.reserve::<Packet>(0) {
+            let ptr = buf.as_mut_ptr();
+            // let len = end - start;
+            // let buf_size = BUF_SIZE.min(len);
+            // if end < start {
+            //     return Err(TC_ACT_PIPE);
+            // }
+            // if start + BUF_SIZE > end {
+            //     return Err(TC_ACT_PIPE);
+            // }
+            // if start <= 0 {
+            //     return Err(TC_ACT_PIPE);
+            // }
+            ctx.load_bytes(0, &mut (*ptr).buf).map_err(|_| TC_ACT_PIPE)?;
+            buf.submit(0);
+        }
+    } 
     Ok(TC_ACT_PIPE)
 }
 
