@@ -1,12 +1,14 @@
-use std::ops::Deref;
 
 use aya::programs::{tc, SchedClassifier, TcAttachType};
+use aya::util::online_cpus;
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
 use log::{debug, info, warn};
 use tokio::signal;
-use aya::maps::RingBuf;
+use only_interception_common::{Packet, BUF_SIZE};
+use aya::maps::AsyncPerfEventArray;
+use bytes::BytesMut;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -61,12 +63,36 @@ async fn main() -> Result<(), anyhow::Error> {
     program.attach(&opt.iface, TcAttachType::Egress)?;
 
     // Read from the map and print the packets
-    let mut ring_buf = RingBuf::try_from(bpf.map_mut("PACKETS").expect("first exit")).expect("second exit");
-    loop {
-        while let Some(item) = ring_buf.next() {
-            let packet = item.deref();
-            println!("Packet: {:?}", packet);
-        }
+    let mut perf_array = AsyncPerfEventArray::try_from(bpf.take_map("EVENTS").unwrap())?;
+    let len_of_packet = std::mem::size_of::<Packet>();
+    for cpu_id in online_cpus()? {
+        // open a separate perf buffer for each cpu
+        let mut buf = perf_array.open(cpu_id, Some(32))?;
+
+        // process each perf buffer in a separate task
+        tokio::spawn(async move {
+            // Prepare a set of buffers to store the data read from the perf buffer.
+            // Here, 10 buffers are created, each with a capacity equal to the size of the Data structure.
+            let mut buffers = (0..10)
+                .map(|_| BytesMut::with_capacity(len_of_packet))
+                .collect::<Vec<_>>();
+            loop {
+                // Attempt to read events from the perf buffer into the prepared buffers.
+                let events = match buf.read_events(&mut buffers).await {
+                    Ok(events) => events,
+                    Err(e) => {
+                        warn!("Error reading events: {}", e);
+                        continue;
+                    }
+                };
+                // Iterate over the number of events read. `events.read` indicates how many events were read.
+                for i in 0..events.read {
+                    let buf = &mut buffers[i];
+                    let packet = buf.as_ptr() as *const Packet; // Cast the buffer pointer to a Data pointer.
+                    info!("{}", unsafe { *packet });
+                }
+            }
+        });
     }
 
 

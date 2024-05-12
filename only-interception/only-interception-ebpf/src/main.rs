@@ -1,19 +1,18 @@
 #![no_std]
 #![no_main]
 
-use core::{mem, ptr};
-use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::RingBuf, bindings::TC_ACT_PIPE};
+use core::mem;
+use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::PerfEventArray, maps::PerCpuArray, bindings::TC_ACT_PIPE};
 use aya_log_ebpf::info;
+use only_interception_common::{Packet, BUF_SIZE};
 
-const BUF_SIZE: usize = 1500;
 
-#[repr(C)]
-pub struct Packet {
-    pub buf: [u8; BUF_SIZE], // Assuming maximum Ethernet frame size
-}
 
 #[map]
-pub static mut PACKETS: RingBuf = RingBuf::with_byte_size(BUF_SIZE as u32, 0);
+// static PACKETS: RingBuf = RingBuf::with_byte_size(10*mem::size_of::<Packet>() as u32, 0);
+static mut PACKETS: PerCpuArray<Packet> = PerCpuArray::with_max_entries(1, 0);
+#[map]
+static mut EVENTS: PerfEventArray<Packet> = PerfEventArray::with_max_entries(1024, 0);
 
 //EGRESS PROGRAM
 #[classifier]
@@ -24,29 +23,31 @@ pub fn only_interception_egress(ctx: TcContext) -> i32 {
     }
 }
 
-
 fn try_only_interception_egress(ctx: TcContext) -> Result<i32, i32> {
     info!(&ctx, "received an egress packet");
+    let start = ctx.data();
+    let end = ctx.data_end();
+    let mut len = ctx.len() as usize;
+
+    info!(&ctx, "packet length: {}", len);
+    // let mut tmp = [0u8; BUF_SIZE];
+    if len >= BUF_SIZE {
+        len = BUF_SIZE;
+    }
+    let packet = unsafe {
+        let ptr = PACKETS.get_ptr_mut(0).ok_or(0_i32)?;
+        &mut *ptr
+    };
+    for i in 0..len as usize {
+        packet.buf[i] = ctx.load(i).map_err(|_| 0)?;
+    }
+
+    // packet.buf = tmp;
+
     unsafe{
-        // let start = ctx.data();
-        // let end = ctx.data_end();
-        if let Some(mut buf) = PACKETS.reserve::<Packet>(0) {
-            let ptr = buf.as_mut_ptr();
-            // let len = end - start;
-            // let buf_size = BUF_SIZE.min(len);
-            // if end < start {
-            //     return Err(TC_ACT_PIPE);
-            // }
-            // if start + BUF_SIZE > end {
-            //     return Err(TC_ACT_PIPE);
-            // }
-            // if start <= 0 {
-            //     return Err(TC_ACT_PIPE);
-            // }
-            ctx.load_bytes(0, &mut (*ptr).buf).map_err(|_| TC_ACT_PIPE)?;
-            buf.submit(0);
-        }
-    } 
+        EVENTS.output(&ctx, &(*packet), 0);
+    }
+
     Ok(TC_ACT_PIPE)
 }
 
