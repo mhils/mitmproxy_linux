@@ -11,6 +11,9 @@ only-interception-common = { path = "../only-interception-common" }
 [[bin]]
 name = "only-interception"
 path = "src/main.rs"
+test = false
+doctest = false
+bench = false
 
 [profile.dev]
 opt-level = 3
