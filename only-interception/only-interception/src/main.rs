@@ -62,6 +62,14 @@ async fn main() -> Result<(), anyhow::Error> {
     program.load()?;
     program.attach(&opt.iface, TcAttachType::Egress)?;
 
+    //INGRESS PROGRAM
+    let program: &mut SchedClassifier = bpf
+        .program_mut("only_interception_ingress")
+        .unwrap()
+        .try_into()?;
+    program.load()?;
+    program.attach(&opt.iface, TcAttachType::Ingress)?;
+
     // Read from the map and print the packets
     let mut perf_array = AsyncPerfEventArray::try_from(bpf.take_map("EVENTS").unwrap())?;
     let len_of_packet = std::mem::size_of::<Packet>();
@@ -96,13 +104,6 @@ async fn main() -> Result<(), anyhow::Error> {
     }
 
 
-    //INGRESS PROGRAM
-    let program: &mut SchedClassifier = bpf
-        .program_mut("only_interception_ingress")
-        .unwrap()
-        .try_into()?;
-    program.load()?;
-    program.attach(&opt.iface, TcAttachType::Ingress)?;
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
