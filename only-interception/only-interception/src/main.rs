@@ -4,12 +4,14 @@ use aya::util::online_cpus;
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
-use log::{debug, info, warn};
+use log::{debug, info, warn, error};
 use tokio::signal;
 use only_interception_common::{Packet, BUF_SIZE};
 use aya::maps::AsyncPerfEventArray;
 use bytes::BytesMut;
 use tun_tap::{Iface, Mode};
+use std::sync::{Arc, Mutex};
+use hex;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -75,14 +77,16 @@ async fn main() -> Result<(), anyhow::Error> {
     // Read from the map and print the packets
     let mut perf_array = AsyncPerfEventArray::try_from(bpf.take_map("EVENTS").unwrap())?;
     let len_of_packet = std::mem::size_of::<Packet>();
+    //Create tap interface
+    let tap = Arc::new(Mutex::new(Iface::new("tap10", Mode::Tap).unwrap()));
+
     for cpu_id in online_cpus()? {
         // open a separate perf buffer for each cpu
         let mut buf = perf_array.open(cpu_id, Some(32))?;
+        let tap_clone = Arc::clone(&tap);
 
         // process each perf buffer in a separate task
         tokio::spawn(async move {
-            //Create TAP interface
-            let tap = Iface::new("tap0", Mode::Tap).unwrap();
             // Prepare a set of buffers to store the data read from the perf buffer.
             // Here, 10 buffers are created, each with a capacity equal to the size of the Data structure.
             let mut buffers = (0..10)
@@ -100,11 +104,13 @@ async fn main() -> Result<(), anyhow::Error> {
                 // Iterate over the number of events read. `events.read` indicates how many events were read.
                 for i in 0..events.read {
                     let buf = &mut buffers[i];
-                    let packet = buf.as_ptr() as *const Packet; // Cast the buffer pointer to a Data pointer.
-                    info!("{}", unsafe { *packet });
+                    let hex_string = hex::encode(&buf);
+                    info!("hex string: {}", hex_string);
 
-                    if let Err(e) = tap.send(&buf[..]) {
-                        warn!("Error reinjecting packet: {}", e)
+                    let tap = tap_clone.lock().unwrap();
+                    match tap.send(&buf[..]) {
+                        Ok(_) => info!("Packet sent to tap"),
+                        Err(e) => error!("Error sending packet to tap: {}", e),
                     }
                 }
             }

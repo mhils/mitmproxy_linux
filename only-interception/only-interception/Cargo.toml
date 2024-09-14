@@ -13,9 +13,10 @@ anyhow = "1"
 env_logger = "0.10"
 libc = "0.2"
 log = "0.4"
-tokio = { version = "1.25", features = ["macros", "rt", "rt-multi-thread", "net", "signal"] }
+tokio = { version = "1.25", features = ["macros", "rt", "rt-multi-thread", "net", "signal", "time", "sync"] }
 bytes = "1.6.0"
 tun-tap = "0.1.4"
+hex = "0.4.3"
 
 [[bin]]
 name = "only-interception"

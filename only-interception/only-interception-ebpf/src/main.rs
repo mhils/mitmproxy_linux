@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::PerfEventArray, maps::PerCpuArray, bindings::TC_ACT_PIPE};
+use aya_ebpf::{macros::classifier, macros::map, programs::TcContext, maps::PerfEventArray, maps::PerCpuArray, bindings::TC_ACT_PIPE, bindings::TC_ACT_SHOT};
 use aya_log_ebpf::info;
 use only_interception_common::{Packet, BUF_SIZE};
 
@@ -41,7 +41,8 @@ pub fn only_interception_egress(ctx: TcContext) -> i32 {
 fn try_only_interception_egress(ctx: TcContext) -> Result<i32, i32> {
     info!(&ctx, "received an egress packet");
     load_packet(ctx).map_err(|_| 0)?;
-    Ok(TC_ACT_PIPE)
+    Ok(TC_ACT_SHOT)
+    // Ok(TC_ACT_PIPE)
 }
 
 //INGRESS PROGRAM
@@ -56,7 +57,8 @@ pub fn only_interception_ingress(ctx: TcContext) -> i32 {
 fn try_only_interception_ingress(ctx: TcContext) -> Result<i32, i32> {
     info!(&ctx, "received an ingress packet");
     load_packet(ctx).map_err(|_| 0)?;
-    Ok(TC_ACT_PIPE)
+    Ok(TC_ACT_SHOT)
+    // Ok(TC_ACT_PIPE)
 }
 
 #[panic_handler]
