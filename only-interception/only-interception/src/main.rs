@@ -9,6 +9,7 @@ use tokio::signal;
 use only_interception_common::{Packet, BUF_SIZE};
 use aya::maps::AsyncPerfEventArray;
 use bytes::BytesMut;
+use tun_tap::{Iface, Mode};
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -70,6 +71,7 @@ async fn main() -> Result<(), anyhow::Error> {
     program.load()?;
     program.attach(&opt.iface, TcAttachType::Ingress)?;
 
+
     // Read from the map and print the packets
     let mut perf_array = AsyncPerfEventArray::try_from(bpf.take_map("EVENTS").unwrap())?;
     let len_of_packet = std::mem::size_of::<Packet>();
@@ -79,6 +81,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
         // process each perf buffer in a separate task
         tokio::spawn(async move {
+            //Create TAP interface
+            let tap = Iface::new("tap0", Mode::Tap).unwrap();
             // Prepare a set of buffers to store the data read from the perf buffer.
             // Here, 10 buffers are created, each with a capacity equal to the size of the Data structure.
             let mut buffers = (0..10)
@@ -98,6 +102,10 @@ async fn main() -> Result<(), anyhow::Error> {
                     let buf = &mut buffers[i];
                     let packet = buf.as_ptr() as *const Packet; // Cast the buffer pointer to a Data pointer.
                     info!("{}", unsafe { *packet });
+
+                    if let Err(e) = tap.send(&buf[..]) {
+                        warn!("Error reinjecting packet: {}", e)
+                    }
                 }
             }
         });
