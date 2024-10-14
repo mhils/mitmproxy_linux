@@ -3,6 +3,7 @@ use std::net::{TcpListener, TcpStream};
 use std::os::fd::AsRawFd;
 use std::thread;
 use aya::{maps::SockHash, programs::SkMsg};
+use aya::maps::SockMap;
 use aya::programs::{CgroupAttachMode, CgroupSock, KProbe};
 use echo_test_common::SockKey;
 #[rustfmt::skip]
@@ -13,8 +14,10 @@ use tokio::signal;
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
+    /*
     let listener = TcpListener::bind("127.0.0.1:8000")?;
     let local_addr = listener.local_addr()?;
+     */
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
     // new memcg based accounting, see https://lwn.net/Articles/837122/
@@ -62,9 +65,7 @@ async fn main() -> anyhow::Result<()> {
     prog.load()?;
     prog.attach(&map_fd)?;
 
-    let mut sock_map: SockHash<_, SockKey> = ebpf.map_mut("TEST_MAP").unwrap().try_into()?;
-    sock_map.insert(key, listener.as_raw_fd(), 0)?;
-
+    /*
     info!("Listening on {local_addr}");
 
     thread::spawn(move || {
@@ -72,15 +73,10 @@ async fn main() -> anyhow::Result<()> {
             match stream {
                 Ok(stream) => {
 
-                    let key = SockKey {
-                        remote_ip4: 0,
-                        local_ip4: 0,
-                        remote_port: 0,
-                        local_port: 0,
-                    };
+                    /*
                     let mut sock_map: SockHash<_, SockKey> = ebpf.map_mut("TEST_MAP").unwrap().try_into().expect("cannot get map");
                     sock_map.insert(key, stream.as_raw_fd(), 0).expect("cannot insert");
-
+                    */
                     thread::spawn(move || {
                         handle_client(stream);
                     });
@@ -91,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
+     */
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
