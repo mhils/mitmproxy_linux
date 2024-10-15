@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
     // root cgroup to get all events.
     let cgroup = std::fs::File::open("/sys/fs/cgroup/")?;
     prog.load()?;
-    prog.attach(&cgroup, CgroupAttachMode::AllowMultiple)?;
+    prog.attach(&cgroup, CgroupAttachMode::Single)?;
     info!("Attached!");
 
     info!("Waiting for Ctrl-C...");
