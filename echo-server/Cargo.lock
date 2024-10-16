@@ -87,8 +87,6 @@ checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 [[package]]
 name = "aya"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7127cbe933572dfabb7a87d2c740f5b720c3e19b4d2b8c99a262ffa35c8761ff"
 dependencies = [
  "assert_matches",
  "aya-obj",
@@ -136,8 +134,6 @@ dependencies = [
 [[package]]
 name = "aya-log"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b600d806c1d07d3b81ab5f4a2a95fd80f479a0d3f1d68f29064d660865f85f02"
 dependencies = [
  "aya",
  "aya-log-common",
@@ -150,8 +146,6 @@ dependencies = [
 [[package]]
 name = "aya-log-common"
 version = "0.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "befef9fe882e63164a2ba0161874e954648a72b0e1c4b361f532d590638c4eec"
 dependencies = [
  "num_enum",
 ]
@@ -159,8 +153,6 @@ dependencies = [
 [[package]]
 name = "aya-log-ebpf"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae348f459df78a79e5cd5e164b6562b927033b97ca3b033605b341a474f44510"
 dependencies = [
  "aya-ebpf",
  "aya-log-common",
@@ -170,8 +162,6 @@ dependencies = [
 [[package]]
 name = "aya-log-ebpf-macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6d8251a75f56077db51892041aa6b77c70ef2723845d7a210979700b2f01bc4"
 dependencies = [
  "aya-log-common",
  "aya-log-parser",
@@ -183,8 +173,6 @@ dependencies = [
 [[package]]
 name = "aya-log-parser"
 version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14b102eb5c88c9aa0b49102d3fbcee08ecb0dfa81014f39b373311de7a7032cb"
 dependencies = [
  "aya-log-common",
 ]
@@ -192,8 +180,6 @@ dependencies = [
 [[package]]
 name = "aya-obj"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e133d505de14d5948a312060b8b12752c22a965632cc57da12f5db653de4c0"
 dependencies = [
  "bytes",
  "core-error",
